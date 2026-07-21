@@ -1,0 +1,55 @@
+# idleRO backend stack.
+#
+# Spawns MySQL 8 + the idleRO-server app. Caddy (reverse proxy + auto TLS)
+# runs on the host — see Caddyfile.example.
+#
+# Usage:
+#   cp .env.example .env && edit secrets
+#   docker compose up -d
+#   docker compose exec server npm run db:migrate    # first-time only
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${DB_NAME:-idlero}
+      MYSQL_USER: ${DB_USER:-idlero}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-idlero}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # Don't expose 3306 publicly — comment out for production.
+    ports:
+      - "127.0.0.1:3306:3306"
+
+  server:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      LOG_LEVEL: info
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://idlero.example.com}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      ACCESS_TOKEN_TTL_SEC: 900
+      REFRESH_TOKEN_TTL_DAYS: 30
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-idlero}
+      DB_PASSWORD: ${DB_PASSWORD:-idlero}
+      DB_NAME: ${DB_NAME:-idlero}
+    ports:
+      - "127.0.0.1:4000:4000"
+
+volumes:
+  mysql_data:

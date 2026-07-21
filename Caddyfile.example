@@ -1,0 +1,22 @@
+# Caddyfile example for idleRO-server.
+#
+# Replace idlero.example.com with your real domain. Caddy will provision
+# and renew a Let's Encrypt certificate automatically.
+#
+# Run on the host:
+#   sudo caddy run --config /path/to/Caddyfile
+
+idlero.example.com {
+	encode zstd gzip
+
+	# API + auth — proxy to the Fastify container.
+	reverse_proxy 127.0.0.1:4000
+
+	# Optional: serve the built PWA from the same host.
+	# root * /var/www/idlero
+	# try_files {path} /index.html
+	# file_server
+}
+
+# If the PWA is hosted separately (e.g. Cloudflare Pages), set CORS_ORIGIN
+# to that origin in .env and skip the file_server block above.
