@@ -13,6 +13,8 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
+    "db:data-migrate": "tsx scripts/data-migrate.ts",
+    "db:status": "tsx scripts/db-status.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

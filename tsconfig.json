@@ -15,9 +15,9 @@
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": ".",
     "sourceMap": true,
     "types": ["node"]
   },
-  "include": ["src"]
+  "include": ["src", "scripts"]
 }

@@ -55,24 +55,76 @@ See `.env.example` for the full list. Key variables:
 | `DB_*` | localhost/idlero | MySQL creds |
 | `MYSQL_ROOT_PASSWORD` | rootpass | docker compose only |
 
-## Project layout
+## Database versioning
 
+The project has **two** migration tracks:
+
+### 1. Schema migrations (DDL)
+
+Managed by drizzle-kit. Workflow:
+
+```bash
+# 1. Edit src/db/schema.ts
+
+# 2. Generate a SQL migration from the diff
+npm run db:generate
+# → migrations/0001_<auto-name>.sql
+
+# 3. Check the generated SQL, commit it
+
+# 4. Apply on the running database
+npm run db:migrate
 ```
-src/
-  env.ts              Zod-validated environment
-  app.ts              Fastify bootstrap (cors / cookie / rate-limit)
-  index.ts            Server entrypoint, signal handlers
-  db/
-    schema.ts         Drizzle schema (users / saves / sessions)
-    client.ts         mysql2 pool + drizzle instance
-    migrate.ts        `npm run db:migrate` runner
-  routes/
-    health.ts         GET /api/v1/health
-migrations/
-  *.sql               Drizzle-kit generated SQL
-docker-compose.yml    mysql + server
-Caddyfile.example     reverse proxy + auto-TLS
+
+Each generated migration is a numbered `.sql` file in `migrations/`. drizzle
+tracks applied ones in the `__drizzle_migrations` table (auto-created), so
+running `db:migrate` repeatedly is safe — only pending files are applied.
+
+See what's applied vs pending:
+
+```bash
+npm run db:status
 ```
+
+### 2. Data migrations (DML)
+
+For cases where you need to transform existing rows — e.g. changing the
+`SaveData` JSON shape between client versions, or back-filling a column.
+
+```bash
+# Create scripts/data-migrations/2026-02-01-my-migration.ts:
+#
+#   import type { DataMigration } from '../data-migrate.js';
+#   import { sql } from 'drizzle-orm';
+#   const m: DataMigration = {
+#     id: '2026-02-01-my-migration',
+#     description: 'Backfill user.last_login_at',
+#     async run(tx) {
+#       await tx.execute(sql`UPDATE users SET last_login_at = created_at WHERE last_login_at IS NULL`);
+#     },
+#   };
+#   export default m;
+
+npm run db:data-migrate
+```
+
+Each migration runs inside a transaction and is tracked in the
+`data_migrations` table by `id`. Re-running is safe — already-applied
+migrations are skipped.
+
+### Migration deployment
+
+When deploying:
+
+```bash
+git pull
+npm ci
+npm run db:migrate          # apply schema changes
+npm run db:data-migrate     # apply data transformations
+# then restart the server process
+```
+
+Both runners are idempotent, so it's safe to run them on every deploy.
 
 ## Roadmap
 
