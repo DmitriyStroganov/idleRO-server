@@ -1,0 +1,149 @@
+/**
+ * Monster database (starter — Archer grinding targets).
+ *
+ * Numbers are close to iRowiki classic mob pages. Tuned for an Archer
+ * progression: Lunatic → Spore → Wolf → MvP boss (Eddga).
+ */
+
+import type { MobDef, MobId } from '@engine/types';
+
+export const MOBS: Record<MobId, MobDef> = {
+  Mob_Lunatic: {
+    id: 'Mob_Lunatic',
+    name: 'Lunatic',
+    level: 3,
+    race: 'Brute',
+    size: 'Small',
+    element: 'Neutral',
+    elementLevel: 1,
+    baseHp: 95,
+    baseSp: 0,
+    str: 1, agi: 1, vit: 1, int: 0, dex: 6, luk: 5,
+    attack: 18,
+    attackRange: 1,
+    defense: 0,
+    magicDefense: 0,
+    hit: 9,
+    flee: 4,
+    attackSpeed: 100,
+    moveSpeed: 1.5,
+    aggressive: false,
+    baseExp: 33,
+    jobExp: 14,
+    lootTableId: 'Loot_Lunatic',
+    spriteKey: 'Sprite_Lunatic',
+  },
+
+  Mob_Spore: {
+    id: 'Mob_Spore',
+    name: 'Spore',
+    level: 8,
+    race: 'Plant',
+    size: 'Medium',
+    element: 'Water',
+    elementLevel: 1,
+    baseHp: 325,
+    baseSp: 0,
+    str: 1, agi: 5, vit: 5, int: 0, dex: 11, luk: 0,
+    attack: 35,
+    attackRange: 1,
+    defense: 0,
+    magicDefense: 0,
+    hit: 19,
+    flee: 13,
+    attackSpeed: 100,
+    moveSpeed: 1.5,
+    aggressive: false,
+    baseExp: 109,
+    jobExp: 50,
+    lootTableId: 'Loot_Spore',
+    spriteKey: 'Sprite_Spore',
+  },
+
+  Mob_Wolf: {
+    id: 'Mob_Wolf',
+    name: 'Wolf',
+    level: 12,
+    race: 'Brute',
+    size: 'Medium',
+    element: 'Neutral',
+    elementLevel: 1,
+    baseHp: 640,
+    baseSp: 0,
+    str: 10, agi: 14, vit: 10, int: 0, dex: 19, luk: 5,
+    attack: 71,
+    attackRange: 1,
+    defense: 0,
+    magicDefense: 0,
+    hit: 31,
+    flee: 26,
+    attackSpeed: 110,
+    moveSpeed: 2.5,            // wolves chase fast
+    aggressive: true,
+    baseExp: 270,
+    jobExp: 145,
+    lootTableId: 'Loot_Wolf',
+    spriteKey: 'Sprite_Wolf',
+  },
+
+  Mob_Savage: {
+    id: 'Mob_Savage',
+    name: 'Savage',
+    level: 28,
+    race: 'Brute',
+    size: 'Large',
+    element: 'Neutral',
+    elementLevel: 1,
+    baseHp: 2169,
+    baseSp: 0,
+    str: 5, agi: 15, vit: 35, int: 5, dex: 24, luk: 15,
+    attack: 226,
+    attackRange: 1,
+    defense: 0,
+    magicDefense: 0,
+    hit: 52,
+    flee: 43,
+    attackSpeed: 110,
+    moveSpeed: 2.0,
+    aggressive: false,
+    baseExp: 1095,
+    jobExp: 575,
+    lootTableId: 'Loot_Savage',
+    spriteKey: 'Sprite_Savage',
+  },
+
+  Mob_Eddga: {
+    id: 'Mob_Eddga',
+    name: 'Eddga',
+    level: 65,
+    race: 'Brute',
+    size: 'Large',
+    element: 'Fire',
+    elementLevel: 2,
+    baseHp: 72000,
+    baseSp: 0,
+    str: 1, agi: 75, vit: 65, int: 35, dex: 95, luk: 105,
+    attack: 1450,
+    attackRange: 1,
+    defense: 5,
+    magicDefense: 20,
+    hit: 160,
+    flee: 140,
+    attackSpeed: 150,
+    moveSpeed: 2.0,
+    aggressive: true,
+    baseExp: 65000,
+    jobExp: 32000,
+    lootTableId: 'Loot_Eddga',
+    spriteKey: 'Sprite_Eddga',
+  },
+};
+
+export const MOB_LIST = Object.values(MOBS);
+
+/** Lookup helper with safe fallback. */
+export function getMob(id: MobId): MobDef {
+  const m = MOBS[id];
+  if (!m) throw new Error(`Unknown mob id: ${id}`);
+  return m;
+}

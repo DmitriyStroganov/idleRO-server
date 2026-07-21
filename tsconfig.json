@@ -17,7 +17,13 @@
     "outDir": "dist",
     "rootDir": ".",
     "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@engine/*": ["src/engine/*"],
+      "@data/*": ["src/data/*"],
+      "@ai/*": ["src/ai/*"]
+    },
     "types": ["node"]
   },
-  "include": ["src", "scripts"]
+  "include": ["src", "scripts", "tests"]
 }
