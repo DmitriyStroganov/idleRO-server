@@ -22,6 +22,17 @@ export interface LootTable {
 }
 
 export const LOOT_TABLES: Record<string, LootTable> = {
+  Loot_Poring: {
+    id: 'Loot_Poring',
+    entries: [
+      { itemId: 'Item_Jellopy', chance: 0.70, min: 1, max: 3 },
+      { itemId: 'Item_RedHerb', chance: 0.05, min: 1, max: 1 },
+      { itemId: 'Item_Apple', chance: 0.05, min: 1, max: 1 },
+      { itemId: 'Item_UnripeApple', chance: 0.02, min: 1, max: 1 },
+      { itemId: 'Item_Knife', chance: 0.001, min: 1, max: 1 },     // very rare
+      { itemId: 'Card_Poring', chance: 0.0001, min: 1, max: 1, rare: true },
+    ],
+  },
   Loot_Lunatic: {
     id: 'Loot_Lunatic',
     entries: [

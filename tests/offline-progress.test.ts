@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { computeOfflineProgress, OFFLINE_CAP_MS, OFFLINE_THRESHOLD_MS } from '@engine/offline-progress';
+import { computeOfflineProgress, OFFLINE_CAP_MS } from '@engine/offline-progress';
 import { createCharacter, createWorld, recomputeCharacterStats } from '@engine/sim';
 import { createRng } from '@engine/rng';
 import type { Character, GameMap } from '@engine/types';

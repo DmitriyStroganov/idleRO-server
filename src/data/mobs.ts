@@ -8,6 +8,32 @@
 import type { MobDef, MobId } from '@engine/types';
 
 export const MOBS: Record<MobId, MobDef> = {
+  Mob_Poring: {
+    id: 'Mob_Poring',
+    name: 'Poring',
+    level: 1,
+    race: 'Plant',
+    size: 'Medium',
+    element: 'Water',
+    elementLevel: 1,
+    baseHp: 50,
+    baseSp: 0,
+    str: 1, agi: 1, vit: 1, int: 0, dex: 6, luk: 5,
+    attack: 5,
+    attackRange: 1,
+    defense: 0,
+    magicDefense: 0,
+    hit: 7,
+    flee: 2,
+    attackSpeed: 100,
+    moveSpeed: 1.0,            // slow — easy to outrun
+    aggressive: false,
+    baseExp: 27,
+    jobExp: 10,
+    lootTableId: 'Loot_Poring',
+    spriteKey: 'Sprite_Poring',
+  },
+
   Mob_Lunatic: {
     id: 'Mob_Lunatic',
     name: 'Lunatic',

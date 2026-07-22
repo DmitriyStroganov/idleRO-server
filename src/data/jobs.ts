@@ -28,8 +28,9 @@ export const NOVICE: JobDef = {
   parent: undefined,
   baseLevelCap: 99,
   jobLevelCap: 10,
-  hpModifier: 15,
-  hpMultiplier: 0.5,
+  // iRO classic Novice Lv1/VIT1 ≈ 50 HP, Lv10/VIT1 ≈ 130 HP.
+  hpModifier: 40,
+  hpMultiplier: 10,
   spModifier: 1,
   spMultiplier: 0.2,
   baseStats: { STR: 1, AGI: 1, VIT: 1, INT: 1, DEX: 1, LUK: 1 },

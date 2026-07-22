@@ -45,14 +45,18 @@ import { nextFloat } from '@engine/rng';
 import { computeOfflineProgress, type OfflineResult } from '@engine/offline-progress';
 import type { Command, OutMessage } from './protocol.js';
 
-/** Build the default starting map (Archer test field, 320 cells). */
+/** Build the default starting map. Poring near spawn, then progressively harder. */
 function defaultMapSpawns(): MobSpawn[] {
   const spawns: MobSpawn[] = [];
   const pool = [
-    { mobId: 'Mob_Lunatic' as const, count: 12, range: [3, 60] as const },
-    { mobId: 'Mob_Spore' as const, count: 10, range: [30, 120] as const },
-    { mobId: 'Mob_Wolf' as const, count: 8, range: [80, 200] as const },
-    { mobId: 'Mob_Savage' as const, count: 6, range: [150, 280] as const },
+    // Starter zone — only Porings, easy kills for a fresh Novice.
+    { mobId: 'Mob_Poring' as const, count: 12, range: [3, 30] as const },
+    // Mid-starter — Lunatic, still easy but hits a bit harder.
+    { mobId: 'Mob_Lunatic' as const, count: 10, range: [25, 70] as const },
+    { mobId: 'Mob_Spore' as const, count: 8,  range: [60, 120] as const },
+    { mobId: 'Mob_Wolf' as const,  count: 6,  range: [100, 200] as const },
+    { mobId: 'Mob_Savage' as const, count: 4, range: [180, 280] as const },
+    // Boss at the end.
     { mobId: 'Mob_Eddga' as const, count: 1, range: [280, 281] as const },
   ];
   for (const g of pool) {
@@ -363,6 +367,7 @@ export async function loadOrCreateSession(
   } else {
     // Fresh Novice Lv1/Job1.
     character = createCharacter({ jobId: 'Novice', baseLevel: 1, jobLevel: 1 });
+    applyStarterKit(character);
     recomputeCharacterStats(character);
     character.hp = character.maxHp;
     character.sp = character.maxSp;
@@ -411,4 +416,32 @@ function freshWorld(): World {
     playerStartX: 2,
     spawns: defaultMapSpawns(),
   });
+}
+
+/**
+ * Equip a fresh character with a basic RO-style starter kit:
+ *   - Novice Knife (weapon)
+ *   - Cotton Shirt (armor)
+ *   - 10 Red Potions
+ *   - 100 Zeny
+ * Also pre-learn Novice First Aid so they have at least one active skill.
+ */
+function applyStarterKit(c: Character): void {
+  c.equipment['Weapon'] = {
+    uid: `starter-weapon-${c.uid}`,
+    itemId: 'Item_Weapon_NoviceKnife',
+    refine: 0,
+    cards: [],
+  };
+  c.equipment['Armor'] = {
+    uid: `starter-armor-${c.uid}`,
+    itemId: 'Item_Armor_CottonShirt',
+    refine: 0,
+    cards: [],
+  };
+  c.appearance.layers.body = `Body_${c.jobId}`;
+  c.inventory.push({ uid: `starter-potions-${c.uid}`, itemId: 'Item_Consum_RedPotion', count: 10 });
+  c.zeny = 100;
+  // Pre-learn First Aid — a Novice's only meaningful skill.
+  c.skills['Skill_Novice_FirstAid'] = 1;
 }

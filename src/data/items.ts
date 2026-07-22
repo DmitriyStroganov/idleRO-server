@@ -20,6 +20,13 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     attack: 10, slots: 0, refineable: false, weight: 20,
     spriteKey: 'Sprite_Weapon_Knife',
   },
+  Item_Weapon_Knife: {
+    id: 'Item_Weapon_Knife', name: 'Knife [4]',
+    type: 'weapon', weaponLevel: 1, weaponType: 'Dagger',
+    attack: 17, slots: 4, refineable: true, weight: 50,
+    spriteKey: 'Sprite_Weapon_Knife',
+  },
+  Item_UnripeApple: { id: 'Item_UnripeApple', name: 'Unripe Apple', type: 'etc', slots: 0, refineable: false, weight: 1 },
   Item_Weapon_NoviceBow: {
     id: 'Item_Weapon_NoviceBow', name: 'Novice Bow',
     type: 'weapon', weaponLevel: 1, weaponType: 'Bow',
@@ -199,6 +206,12 @@ export const CARDS: Record<CardId, CardDef> = {
     slot: 'Weapon',
     bonuses: [{ kind: 'critRate', value: 1 }],
     description: '+1 CRIT. Lucky bunny.',
+  },
+  Card_Poring: {
+    id: 'Card_Poring', name: 'Poring Card',
+    slot: 'Armor',
+    bonuses: [{ kind: 'statBonus', stat: 'LUK', value: 2 }],
+    description: '+2 LUK. The pink squish.',
   },
   Card_Spore: {
     id: 'Card_Spore', name: 'Spore Card',

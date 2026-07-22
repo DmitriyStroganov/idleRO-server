@@ -327,6 +327,36 @@ export type SimEvent =
   | { kind: 'levelUp'; whoUid: string; levelKind: 'base' | 'job'; newLevel: number; tick: number };
 
 /** Advance the world by one tick (50 ms). */
+const PLAYER_RESPAWN_HP_FRACTION = 1.0;     // full HP on respawn
+const PLAYER_RESPAWN_EXP_PENALTY = 0;       // 0% exp loss (alpha — be kind)
+
+/** Respawn a dead player: reset HP/SP, move to spawn point, clear aggro. */
+function respawnPlayer(p: Character, world: World, events: SimEvent[]): void {
+  recomputeCharacterStats(p);
+  p.hp = Math.floor(p.maxHp * PLAYER_RESPAWN_HP_FRACTION);
+  p.sp = p.maxSp;
+  if (PLAYER_RESPAWN_EXP_PENALTY > 0) {
+    p.exp = Math.floor(p.exp * (1 - PLAYER_RESPAWN_EXP_PENALTY));
+  }
+  p.position.x = world.map.playerStartX;
+  p.sprite.animation = 'idle';
+  p.sprite.startedAt = world.tick;
+  p.sprite.facing = 'right';
+  p.casting = undefined;
+  p.castFinishAt = 0;
+  p.nextAttackAt = world.tick;
+  p.statusEffects = [];
+  // Clear aggro on monsters that were targeting this player.
+  for (const m of world.monsters) {
+    if (m.aggroTargetUid === p.uid) {
+      m.aggroTargetUid = undefined;
+      m.position.x = m.spawnX;
+      m.sprite.animation = 'idle';
+    }
+  }
+  events.push({ kind: 'castResolve' as never, casterUid: p.uid, skillId: '__respawn' as never, tick: world.tick });
+}
+
 export function stepWorld(
   world: World,
   strategies: ReadonlyMap<string, AiStrategy>,
@@ -344,9 +374,15 @@ export function stepWorld(
     tickMonster(m, world, events, rng);
   }
 
-  // 3. Run player strategies
+  // 3. Run player strategies (skip dead — they're handled by respawn below)
   for (const p of world.players) {
-    if (p.hp <= 0) continue;
+    if (p.hp <= 0) {
+      // Auto-respawn after 3 seconds.
+      if (p.castFinishAt > 0 && world.tick >= p.castFinishAt) {
+        respawnPlayer(p, world, events);
+      }
+      continue;
+    }
     const strat = strategies.get(p.uid);
     if (!strat) continue;
     const ctx = {
@@ -493,6 +529,11 @@ function tickMonster(m: Monster, world: World, events: SimEvent[], rng: RngState
         target.hp = 0;
         target.sprite.animation = 'dead';
         target.sprite.startedAt = world.tick;
+        // Schedule respawn 3s later (PlayerSession will pick this up via the
+        // castFinishAt reuse in stepWorld's player loop).
+        if (target.kind === 'player') {
+          target.castFinishAt = world.tick + 3000;
+        }
         events.push({ kind: 'death', uid: target.uid, tick: world.tick });
       }
     } else if (result.kind === 'miss') {
