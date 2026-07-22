@@ -102,6 +102,22 @@ export const characters = mysqlTable(
     jobLevel: int('job_level').notNull().default(1),
     zeny: bigint('zeny', { mode: 'number' }).notNull().default(0),
     playtimeMs: bigint('playtime_ms', { mode: 'number', unsigned: true }).notNull().default(0),
+
+    /**
+     * Offline-progression tracking.
+     *  - lastSeenAt: updated on every flush + on offline calc application.
+     *    Used to compute (now - lastSeenAt) on reconnect → exp gain.
+     *  - offlineBaselineExpPerMin / jobExpPerMin: derived from the last 5
+     *    minutes of online play. If 0 (new character), a per-map estimate
+     *    is used.
+     *  - offlineMode: true while the player has explicitly toggled "Go Offline"
+     *    from Town. Reset to false on the next connect.
+     */
+    lastSeenAt: timestamp('last_seen_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+    offlineBaselineExpPerMin: int('offline_baseline_exp_per_min').notNull().default(0),
+    offlineBaselineJobExpPerMin: int('offline_baseline_job_exp_per_min').notNull().default(0),
+    offlineMode: tinyint('offline_mode', { unsigned: false }).notNull().default(0),
+
     createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
     updatedAt: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().onUpdateNow(),
   },

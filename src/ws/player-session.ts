@@ -27,6 +27,7 @@ import type {
   MobSpawn,
 } from '@engine/types';
 import { createRng, type RngState } from '@engine/rng';
+import { MOBS } from '@data/mobs';
 import type { AiStrategy } from '@ai/strategy';
 import { presetStrategy } from '@ai/preset-executor';
 import { priorityListStrategy } from '@ai/priority-list';
@@ -41,6 +42,7 @@ import {
   removeCard,
 } from '@engine/character-ops';
 import { nextFloat } from '@engine/rng';
+import { computeOfflineProgress, type OfflineResult } from '@engine/offline-progress';
 import type { Command, OutMessage } from './protocol.js';
 
 /** Build the default starting map (Archer test field, 320 cells). */
@@ -74,6 +76,10 @@ export class PlayerSession {
   private rng: RngState;
   private lastFlushAt = 0;
   private paused = false;
+  /** Rolling kill-events window (last 5 min) used to compute offline baseline. */
+  private recentKillEvents: { at: number; exp: number; jobExp: number }[] = [];
+  /** Returned from handleCommand to signal the caller to close the socket. */
+  static readonly CLOSE_SIGNAL = 'close' as const;
 
   constructor(
     userId: number,
@@ -97,6 +103,23 @@ export class PlayerSession {
     if (this.paused) return;
     const strategies = new Map<string, AiStrategy>([[this.character.uid, this.strategy]]);
     const events = stepWorld(this.world, strategies, this.rng);
+
+    // Track kill events for offline baseline (5-minute sliding window).
+    for (const ev of events) {
+      if (ev.kind === 'kill' && ev.killerUid === this.character.uid && ev.mobId) {
+        const def = MOBS[ev.mobId as keyof typeof MOBS];
+        if (def) {
+          this.recentKillEvents.push({ at: now, exp: def.baseExp, jobExp: def.jobExp });
+        }
+      }
+    }
+    // Trim to last 5 minutes.
+    if (this.recentKillEvents.length > 0) {
+      const cutoff = now - 5 * 60_000;
+      while (this.recentKillEvents.length > 0 && this.recentKillEvents[0]!.at < cutoff) {
+        this.recentKillEvents.shift();
+      }
+    }
 
     // Periodic flush.
     if (now - this.lastFlushAt > 5_000) {
@@ -134,8 +157,12 @@ export class PlayerSession {
     else this.send({ type: 'paused', paused: false });
   }
 
-  /** Apply a command from the client. */
-  async handleCommand(cmd: Command): Promise<void> {
+  /**
+   * Apply a command from the client.
+   * Returns PlayerSession.CLOSE_SIGNAL when the WS should be closed
+   * (currently only for `go_offline`).
+   */
+  async handleCommand(cmd: Command): Promise<typeof PlayerSession.CLOSE_SIGNAL | void> {
     switch (cmd.kind) {
       case 'open_town':
         this.setPaused(true);
@@ -196,6 +223,16 @@ export class PlayerSession {
         // TODO: implement map switching — load characterMapStates for the new map.
         this.send({ type: 'error', error: 'not_implemented', kind: 'change_map' });
         return;
+
+      case 'go_offline': {
+        // Explicit user action — flush state, mark offline, signal close.
+        this.character.offlineMode = true;
+        this.character.lastSeenAt = Date.now();
+        await this.flush();
+        this.send({ type: 'offline_mode', mode: true });
+        return PlayerSession.CLOSE_SIGNAL;
+      }
+
       default:
         this.send({ type: 'error', error: 'unknown_command', kind: (cmd as { kind: string }).kind });
     }
@@ -203,6 +240,19 @@ export class PlayerSession {
 
   /** Persist current state to DB. */
   async flush(): Promise<void> {
+    // Refresh offline baseline from the 5-minute kill window.
+    const now = Date.now();
+    if (this.recentKillEvents.length > 0) {
+      const totalExp = this.recentKillEvents.reduce((s, e) => s + e.exp, 0);
+      const totalJob = this.recentKillEvents.reduce((s, e) => s + e.jobExp, 0);
+      this.character.offlineBaseline = {
+        expPerMin: Math.floor(totalExp / 5),
+        jobExpPerMin: Math.floor(totalJob / 5),
+        sampledAt: now,
+      };
+    }
+    this.character.lastSeenAt = now;
+
     // Upsert character snapshot + denormalised fields.
     const charRow = {
       userId: this.userId,
@@ -214,7 +264,11 @@ export class PlayerSession {
       jobLevel: this.character.jobLevel,
       zeny: this.character.zeny,
       playtimeMs: 0, // TODO: accumulate session time
-      updatedAt: new Date(),
+      lastSeenAt: new Date(now),
+      offlineBaselineExpPerMin: this.character.offlineBaseline.expPerMin,
+      offlineBaselineJobExpPerMin: this.character.offlineBaseline.jobExpPerMin,
+      offlineMode: this.character.offlineMode ? 1 : 0,
+      updatedAt: new Date(now),
     };
     const existing = await db.select({ id: characters.id })
       .from(characters)
@@ -290,6 +344,22 @@ export async function loadOrCreateSession(
     characterId = row.id;
     character = row.snapshot as unknown as Character;
     mapId = row.currentMapId;
+
+    // Reconcile offline baseline + offlineMode from DB columns (in case
+    // the snapshot predates the migration that added these fields).
+    if (!character.offlineBaseline) {
+      character.offlineBaseline = {
+        expPerMin: row.offlineBaselineExpPerMin ?? 0,
+        jobExpPerMin: row.offlineBaselineJobExpPerMin ?? 0,
+        sampledAt: 0,
+      };
+    }
+    if (typeof character.lastSeenAt !== 'number') {
+      character.lastSeenAt = row.lastSeenAt ? new Date(row.lastSeenAt).getTime() : Date.now();
+    }
+    if (typeof character.offlineMode !== 'boolean') {
+      character.offlineMode = !!row.offlineMode;
+    }
   } else {
     // Fresh Novice Lv1/Job1.
     character = createCharacter({ jobId: 'Novice', baseLevel: 1, jobLevel: 1 });
@@ -318,11 +388,20 @@ export async function loadOrCreateSession(
     world = freshWorld();
   }
 
+  // Apply offline-progression calc (silently — caller can surface via state).
+  const offlineRng = createRng((userId * 7919) ^ Date.now());
+  const offlineResult = computeOfflineProgress(character, world.map, offlineRng);
+  // Reset offline flag now that we've loaded them back.
+  character.offlineMode = false;
+
   // Place character at the start.
   character.position.x = world.map.playerStartX;
   world.players = [character];
 
-  return new PlayerSession(userId, username, character, world, mapId, send);
+  const session = new PlayerSession(userId, username, character, world, mapId, send);
+  // Stash the offline result so the caller can include it in the hello burst.
+  (session as unknown as { pendingOfflineResult: OfflineResult }).pendingOfflineResult = offlineResult;
+  return session;
 }
 
 function freshWorld(): World {

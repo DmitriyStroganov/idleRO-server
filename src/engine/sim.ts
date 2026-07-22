@@ -75,6 +75,7 @@ export function createWorld(init: WorldInit): World {
       tiles,
       spawnPoints: init.spawns,
       playerStartX: init.playerStartX,
+      offlineSafe: true,
     },
     players: [],
     monsters: [],
@@ -139,6 +140,9 @@ export function createCharacter(opts: {
       skinColor: 0,
       scale: 1,
     },
+    lastSeenAt: Date.now(),
+    offlineBaseline: { expPerMin: 0, jobExpPerMin: 0, sampledAt: 0 },
+    offlineMode: false,
   };
 
   recomputeCharacterStats(character);

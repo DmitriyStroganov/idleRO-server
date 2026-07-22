@@ -90,6 +90,13 @@ export class WsServer {
     send({ type: 'hello', user: { id: payload.sub, username: payload.username } });
     send({ type: 'state', character: session.character, world: session.world });
 
+    // If offline-progression was applied on load, surface it silently.
+    // (UI may or may not display anything — design choice is "silent".)
+    const pendingOffline = (session as unknown as { pendingOfflineResult?: { applied: boolean; offlineMs: number; effectiveMs: number; expGained: number; jobExpGained: number; levelsGained: number; jobLevelsGained: number; died: boolean } }).pendingOfflineResult;
+    if (pendingOffline?.applied) {
+      send({ type: 'offline_applied', result: pendingOffline });
+    }
+
     ws.on('message', async (data) => {
       let msg: InMessage;
       try {
@@ -103,7 +110,13 @@ export class WsServer {
         return;
       }
       try {
-        await session.handleCommand(msg.command);
+        const signal = await session.handleCommand(msg.command);
+        if (signal === PlayerSession.CLOSE_SIGNAL) {
+          // Intentional offline (go_offline). The session has already flushed
+          // and sent offline_mode — close the socket cleanly.
+          ws.close(4000, 'intentional offline');
+          return;
+        }
         send({ type: 'command_ack', ok: true });
       } catch (err) {
         send({ type: 'command_ack', ok: false, error: (err as Error).message });

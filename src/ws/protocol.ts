@@ -25,7 +25,8 @@ export type Command =
   | { kind: 'refine_item'; itemUid: string }
   | { kind: 'socket_card'; itemUid: string; cardId: string }
   | { kind: 'remove_card'; itemUid: string; slotIdx: number }
-  | { kind: 'change_map'; mapId: string };
+  | { kind: 'change_map'; mapId: string }
+  | { kind: 'go_offline' };
 
 export interface InMessage {
   type: 'command';
@@ -52,10 +53,23 @@ export interface SimEventWire {
   uid?: string;
 }
 
+export interface OfflineResultWire {
+  applied: boolean;
+  offlineMs: number;
+  effectiveMs: number;
+  expGained: number;
+  jobExpGained: number;
+  levelsGained: number;
+  jobLevelsGained: number;
+  died: boolean;
+}
+
 export type OutMessage =
   | { type: 'hello'; user: { id: number; username: string } }
   | { type: 'state'; character: Character; world: World }
   | { type: 'events'; tick: number; events: SimEventWire[] }
   | { type: 'paused'; paused: boolean }
   | { type: 'command_ack'; ok: boolean; error?: string }
-  | { type: 'error'; error: string; kind?: string };
+  | { type: 'error'; error: string; kind?: string }
+  | { type: 'offline_mode'; mode: boolean }
+  | { type: 'offline_applied'; result: OfflineResultWire };

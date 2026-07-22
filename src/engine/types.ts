@@ -579,6 +579,21 @@ export interface Character extends Entity {
    * changes equipment, hair style, or dye color.
    */
   appearance: Appearance;
+
+  /**
+   * Offline-progression tracking.
+   *  - lastSeenAt: timestamp (ms) of the last flush / online tick / offline-calc application.
+   *  - offlineBaseline: rolling 5-minute average from online play; used to estimate
+   *    exp/minute while away. Falls back to a per-map estimate if zero.
+   *  - offlineMode: true when the player has explicitly gone offline via Town.
+   */
+  lastSeenAt: number;
+  offlineBaseline: {
+    expPerMin: number;
+    jobExpPerMin: number;
+    sampledAt: number;
+  };
+  offlineMode: boolean;
 }
 
 /** Discriminated union for the behaviour driving a character's AI. */
@@ -655,6 +670,12 @@ export interface GameMap {
   exitX?: number;
   /** Where the player starts on this map. */
   playerStartX: number;
+  /**
+   * Offline-safety flag. If true (default), a character cannot die during
+   * offline progression. If false (MVP maps, PvP arena, danger zones),
+   * there is a small per-hour chance of death — exp is then halved.
+   */
+  offlineSafe: boolean;
 }
 
 /** A mob spawn point along the lane. */
