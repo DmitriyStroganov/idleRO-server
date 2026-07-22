@@ -100,13 +100,85 @@ export class PlayerSession {
     this.currentMapId = mapId;
     this.rng = createRng((userId * 7919) | 0);
     this.strategy = this.resolveStrategy(character);
+
+    // Log session start for debugging.
+    const aliveMobs = world.monsters.filter((m) => m.hp > 0).length;
+    console.log(JSON.stringify({
+      event: 'session_start',
+      userId,
+      username,
+      jobId: character.jobId,
+      baseLevel: character.baseLevel,
+      jobLevel: character.jobLevel,
+      hp: character.hp,
+      maxHp: character.maxHp,
+      sp: character.sp,
+      position: character.position.x,
+      equipment: Object.keys(character.equipment),
+      inventoryCount: character.inventory.length,
+      skills: Object.keys(character.skills),
+      statPoints: character.statPoints,
+      skillPoints: character.skillPoints,
+      worldTick: world.tick,
+      monsterCount: aliveMobs,
+      mapId,
+    }));
   }
+
+  private lastDebugLog = 0;
 
   /** Run one simulation tick (50ms). Called by the global scheduler. */
   tick(now: number): void {
     if (this.paused) return;
     const strategies = new Map<string, AiStrategy>([[this.character.uid, this.strategy]]);
     const events = stepWorld(this.world, strategies, this.rng);
+
+    // Log critical events for debugging.
+    for (const ev of events) {
+      if (ev.kind === 'death' && ev.uid === this.character.uid) {
+        console.log(JSON.stringify({
+          event: 'player_died', userId: this.userId,
+          tick: this.world.tick, hp: this.character.hp,
+          position: this.character.position.x,
+        }));
+      }
+      if (ev.kind === 'kill' && ev.killerUid === this.character.uid) {
+        console.log(JSON.stringify({
+          event: 'player_kill', userId: this.userId,
+          mobId: ev.mobId, exp: this.character.exp,
+          baseLevel: this.character.baseLevel,
+        }));
+      }
+      if (ev.kind === 'levelUp') {
+        console.log(JSON.stringify({
+          event: 'level_up', userId: this.userId,
+          levelKind: (ev as { levelKind?: string }).levelKind,
+          newLevel: (ev as { newLevel?: number }).newLevel,
+        }));
+      }
+    }
+
+    // Periodic status log (every 5s).
+    if (now - this.lastDebugLog > 5_000) {
+      this.lastDebugLog = now;
+      const aliveMobs = this.world.monsters.filter((m) => m.hp > 0).length;
+      const aggroMobs = this.world.monsters.filter((m) => m.aggroTargetUid === this.character.uid).length;
+      console.log(JSON.stringify({
+        event: 'status',
+        userId: this.userId,
+        tick: this.world.tick,
+        hp: Math.ceil(this.character.hp),
+        maxHp: this.character.maxHp,
+        sp: Math.ceil(this.character.sp),
+        exp: Math.floor(this.character.exp),
+        baseLevel: this.character.baseLevel,
+        position: this.character.position.x.toFixed(1),
+        aliveMobs,
+        aggroMobs,
+        animation: this.character.sprite.animation,
+        paused: this.paused,
+      }));
+    }
 
     // Track kill events for offline baseline (5-minute sliding window).
     for (const ev of events) {
