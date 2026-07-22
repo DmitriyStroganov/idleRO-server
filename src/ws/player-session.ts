@@ -126,6 +126,7 @@ export class PlayerSession {
   }
 
   private lastDebugLog = 0;
+  private lastStatePush = 0;
 
   /** Run one simulation tick (50ms). Called by the global scheduler. */
   tick(now: number): void {
@@ -178,6 +179,19 @@ export class PlayerSession {
         animation: this.character.sprite.animation,
         paused: this.paused,
       }));
+    }
+
+    // Send periodic state updates so the client renderer can animate
+    // positions / HP / sprite frames even when no events are generated.
+    // (Without this the client's world snapshot is frozen between
+    // explicit commands like open_town.)
+    if (now - this.lastStatePush > 1_000) {
+      this.lastStatePush = now;
+      this.send({
+        type: 'state',
+        character: this.character,
+        world: this.world,
+      });
     }
 
     // Track kill events for offline baseline (5-minute sliding window).
