@@ -1,0 +1,29 @@
+# Production docker-compose for idleRO-server.
+#
+# Use this when MySQL is hosted OUTSIDE Docker (already running on the host
+# or on another machine). It launches only the Fastify server with
+# network_mode: host so it can reach the host's MySQL on 127.0.0.1:3306.
+#
+# Usage:
+#   1. cp .env.example .env  (edit secrets + DB creds)
+#   2. docker compose -f docker-compose.prod.yml up -d --build
+#   3. docker compose -f docker-compose.prod.yml exec server npm run db:migrate
+#
+# The default `docker-compose.yml` is for local dev (spawns its own MySQL).
+
+services:
+  server:
+    build: .
+    restart: unless-stopped
+    # Host networking so the container can reach MySQL on the host's
+    # 127.0.0.1:3306 — required when MySQL bind-address is 127.0.0.1
+    # (the default on Ubuntu). No `ports` mapping needed because of this.
+    network_mode: host
+    env_file: .env
+    # Health probe — Caddy / nginx can use this for active checks.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
