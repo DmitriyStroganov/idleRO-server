@@ -56,19 +56,27 @@ export class WsServer {
   }
 
   private async onConnection(ws: WsWebSocket, req: { url?: string }): Promise<void> {
-    // Auth via ?token=access_jwt
+    // Auth-less mode: auto-use "test" user (userId=1) for all connections.
+    // Token is still supported if provided, but not required.
     const url = new URL(req.url ?? '/', 'http://x');
     const token = url.searchParams.get('token');
-    if (!token) {
-      ws.close(4001, 'no_token');
-      return;
-    }
-    let payload: { sub: number; username: string };
-    try {
-      payload = verifyAccessToken(token);
-    } catch {
-      ws.close(4003, 'bad_token');
-      return;
+
+    let userId: number;
+    let username: string;
+
+    if (token) {
+      try {
+        const payload = verifyAccessToken(token);
+        userId = payload.sub;
+        username = payload.username;
+      } catch {
+        ws.close(4003, 'bad_token');
+        return;
+      }
+    } else {
+      // Auth-less: use auto-created "test" user (ID 1).
+      userId = 1;
+      username = 'test';
     }
 
     const send = (msg: OutMessage): void => {
@@ -77,17 +85,17 @@ export class WsServer {
 
     let session: PlayerSession;
     try {
-      session = await loadOrCreateSession(payload.sub, payload.username, send);
+      session = await loadOrCreateSession(userId, username, send);
     } catch (err) {
       this.app.log.error({ err }, 'failed to load session');
       ws.close(1011, 'session_load_failed');
       return;
     }
     this.sessions.set(ws, session);
-    this.app.log.info({ userId: payload.sub, username: payload.username }, 'WS connected');
+    this.app.log.info({ userId, username }, 'WS connected');
 
     // Send initial state.
-    send({ type: 'hello', user: { id: payload.sub, username: payload.username } });
+    send({ type: 'hello', user: { id: userId, username } });
     send({ type: 'state', character: session.character, world: session.world });
 
     // If offline-progression was applied on load, surface it silently.
@@ -125,7 +133,7 @@ export class WsServer {
 
     ws.on('close', async () => {
       this.sessions.delete(ws);
-      this.app.log.info({ userId: payload.sub }, 'WS disconnected');
+      this.app.log.info({ userId }, 'WS disconnected');
       try { await session.flush(); } catch { /* best-effort */ }
     });
     ws.on('error', (err) => {

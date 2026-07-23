@@ -1,30 +1,51 @@
 /**
  * Server entry point.
  *
- * Loads env, builds Fastify, registers REST routes + WebSocket server,
+ * Loads env, builds Fastify, registers routes + WebSocket server,
  * starts the sim tick loop. Handles SIGTERM/SIGINT for clean shutdown.
+ *
+ * Auth-less prototype mode: auto-creates "test" user on startup.
  */
 
 import { buildServer } from './app.js';
 import { healthRoutes } from './routes/health.js';
-import { authRoutes } from './routes/auth.js';
+import { resetRoutes } from './routes/reset.js';
 import { WsServer } from './ws/server.js';
-import { closeDb } from './db/client.js';
+import { closeDb, db } from './db/client.js';
+import { users } from './db/schema.js';
+import { eq } from 'drizzle-orm';
 import { env } from './env.js';
+
+/** Auto-seed a "test" user (ID=1) if it doesn't exist. */
+async function seedTestUser(): Promise<void> {
+  const existing = await db.select().from(users).where(eq(users.usernameLc, 'test')).limit(1);
+  if (existing.length === 0) {
+    await db.insert(users).values({
+      username: 'test',
+      usernameLc: 'test',
+      passwordHash: '$2a$10$placeholder', // auth-less mode, never checked
+    });
+    console.log('✓ Seeded "test" user (ID=1)');
+  }
+}
 
 async function main(): Promise<void> {
   const app = await buildServer();
 
-  await app.register(healthRoutes, { prefix: '/api/v1' });
-  await app.register(authRoutes, { prefix: '/api/v1' });
+  // Seed test user before starting.
+  await seedTestUser();
 
-  // WebSocket server (handles /ws/* paths via 'upgrade' hijack).
+  await app.register(healthRoutes, { prefix: '/api/v1' });
+  await app.register(resetRoutes, { prefix: '/api/v1' });
+
+  // WebSocket server (auth-less: accepts connections without token).
   const ws = new WsServer(app);
   ws.start();
   app.addHook('onClose', async () => { await ws.stop(); });
 
   await app.listen({ host: '0.0.0.0', port: env.PORT });
-  app.log.info(`WebSocket: ws://0.0.0.0:${env.PORT}/ws?token=<access_jwt>`);
+  console.log(`WebSocket: ws://0.0.0.0:${env.PORT}/ws (auth-less mode)`);
+  console.log(`Reset: POST http://0.0.0.0:${env.PORT}/api/v1/reset`);
 
   const shutdown = async (signal: string) => {
     app.log.info({ signal }, 'shutting down');

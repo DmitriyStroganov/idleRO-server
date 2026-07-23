@@ -185,7 +185,7 @@ export class PlayerSession {
     // positions / HP / sprite frames even when no events are generated.
     // (Without this the client's world snapshot is frozen between
     // explicit commands like open_town.)
-    if (now - this.lastStatePush > 1_000) {
+    if (now - this.lastStatePush > 250) {
       this.lastStatePush = now;
       this.send({
         type: 'state',
