@@ -404,7 +404,24 @@ export function stepWorld(
     e.statusEffects = e.statusEffects.filter((se) => se.remainingMs > 0);
   }
 
-  // 5. Loot auto-pickup (player walks over dropped items)
+  // 5. Clean up dead monsters (remove from world after death animation).
+  world.monsters = world.monsters.filter((m) => {
+    if (m.hp <= 0) {
+      // Keep for 1 second after death for animation, then remove.
+      return world.tick - (m as Monster & { deathTick?: number }).deathTick! < 1000
+        || (m as Monster & { deathTick?: number }).deathTick === undefined;
+    }
+    return true;
+  });
+  // Mark death tick when monster dies (one-time).
+  for (const m of world.monsters) {
+    if (m.hp <= 0) {
+      const dm = m as Monster & { deathTick?: number };
+      if (dm.deathTick === undefined) dm.deathTick = world.tick;
+    }
+  }
+
+  // 6. Loot auto-pickup (player walks over dropped items)
   for (const item of world.droppedItems) {
     if (item.ownerUid === undefined) continue;
     for (const p of world.players) {
