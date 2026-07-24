@@ -43,8 +43,8 @@ async function main(): Promise<void> {
   ws.start();
   app.addHook('onClose', async () => { await ws.stop(); });
 
-  // Allow reset endpoint to kill active WS sessions.
-  setKillSessions(() => ws.stop());
+  // Allow reset endpoint to disconnect active WS sessions (without killing server).
+  setKillSessions(() => ws.disconnectAll());
 
   await app.listen({ host: '0.0.0.0', port: env.PORT });
   console.log(`WebSocket: ws://0.0.0.0:${env.PORT}/ws (auth-less mode)`);

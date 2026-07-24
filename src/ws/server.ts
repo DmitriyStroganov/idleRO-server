@@ -52,7 +52,17 @@ export class WsServer {
     if (this.heartbeat) { clearInterval(this.heartbeat); this.heartbeat = null; }
     // Flush all sessions before tearing down.
     await Promise.all([...this.sessions.values()].map((s) => s.flush().catch(() => {})));
+    this.sessions.clear();
     this.wss.close();
+  }
+
+  /** Close all active client connections (e.g. for reset), but keep server running. */
+  disconnectAll(): void {
+    for (const [ws] of this.sessions) {
+      try { ws.close(4000, 'session_reset'); } catch { /* ignore */ }
+    }
+    this.sessions.clear();
+    this.app.log.info('Disconnected all WS sessions (reset)');
   }
 
   private async onConnection(ws: WsWebSocket, req: { url?: string }): Promise<void> {
