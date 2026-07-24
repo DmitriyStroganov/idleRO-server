@@ -49,20 +49,20 @@ import type { Command, OutMessage } from './protocol.js';
 function defaultMapSpawns(): MobSpawn[] {
   const spawns: MobSpawn[] = [];
   const pool = [
-    // Starter zone — only Porings, easy kills for a fresh Novice.
-    { mobId: 'Mob_Poring' as const, count: 12, range: [3, 30] as const },
-    // Mid-starter — Lunatic, still easy but hits a bit harder.
-    { mobId: 'Mob_Lunatic' as const, count: 10, range: [25, 70] as const },
-    { mobId: 'Mob_Spore' as const, count: 8,  range: [60, 120] as const },
-    { mobId: 'Mob_Wolf' as const,  count: 6,  range: [100, 200] as const },
-    { mobId: 'Mob_Savage' as const, count: 4, range: [180, 280] as const },
+    // Starter zone — few Porings, spread out.
+    { mobId: 'Mob_Poring' as const, count: 4, range: [8, 35] as const },
+    // Mid-starter
+    { mobId: 'Mob_Lunatic' as const, count: 4, range: [40, 80] as const },
+    { mobId: 'Mob_Spore' as const, count: 3,  range: [80, 130] as const },
+    { mobId: 'Mob_Wolf' as const,  count: 3,  range: [130, 220] as const },
+    { mobId: 'Mob_Savage' as const, count: 2, range: [220, 290] as const },
     // Boss at the end.
-    { mobId: 'Mob_Eddga' as const, count: 1, range: [280, 281] as const },
+    { mobId: 'Mob_Eddga' as const, count: 1, range: [290, 291] as const },
   ];
   for (const g of pool) {
     for (let i = 0; i < g.count; i++) {
       const x = g.range[0] + Math.floor(Math.random() * (g.range[1] - g.range[0]));
-      spawns.push({ x, mobId: g.mobId, respawnMs: 10_000, maxAlive: 3, dynamicSpawn: false });
+      spawns.push({ x, mobId: g.mobId, respawnMs: 10_000, maxAlive: 1, dynamicSpawn: false });
     }
   }
   return spawns;
