@@ -85,8 +85,16 @@ export class WsServer {
         return;
       }
     } else {
-      // Auth-less: use auto-created "test" user (ID 1).
-      userId = 1;
+      // Auth-less: look up "test" user from DB (ID may not be 1).
+      const { db } = await import('../db/client.js');
+      const { users } = await import('../db/schema.js');
+      const { eq } = await import('drizzle-orm');
+      const testRows = await db.select().from(users).where(eq(users.usernameLc, 'test')).limit(1);
+      if (testRows.length === 0) {
+        ws.close(1011, 'test user not seeded');
+        return;
+      }
+      userId = testRows[0]!.id;
       username = 'test';
     }
 
