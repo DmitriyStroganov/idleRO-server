@@ -456,19 +456,28 @@ function* allEntities(world: World): Generator<Entity> {
 function tickSpawns(world: World, _rng: RngState): void {
   for (const spawn of world.map.spawnPoints) {
     // Count ALL monsters for this spawn (including dead ones in death animation).
-    // This prevents double-spawning while the corpse is still visible.
     const total = world.monsters.filter(
       (m) => m.spawnDescriptor === spawn,
     ).length;
     if (total >= spawn.maxAlive) continue;
-    // Only spawn when player is near the spawn x (within 25 cells).
-    const playerNear = world.players.some(
-      (p) => Math.abs(p.position.x - spawn.x) < 25,
-    );
-    if (!playerNear && !spawn.dynamicSpawn) continue;
-    // Check respawn timer via a per-spawn memory slot on the world (simple: spawn immediately if alive < max).
+
+    // Determine spawn X: if dynamicSpawn, spawn ahead of the player.
+    // Otherwise use the fixed spawn.x.
+    let spawnX = spawn.x;
+    if (spawn.dynamicSpawn) {
+      const player = world.players.find((p) => p.hp > 0);
+      if (!player) continue;
+      spawnX = player.position.x + 8; // always 8 cells ahead
+    } else {
+      // Fixed spawn: only activate when player is near.
+      const playerNear = world.players.some(
+        (p) => Math.abs(p.position.x - spawn.x) < 25,
+      );
+      if (!playerNear) continue;
+    }
+
     if (total < spawn.maxAlive) {
-      const m = createMonster(spawn.mobId, spawn.x, spawn);
+      const m = createMonster(spawn.mobId, spawnX, spawn);
       world.monsters.push(m);
     }
   }
