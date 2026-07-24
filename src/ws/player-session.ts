@@ -49,14 +49,11 @@ import type { Command, OutMessage } from './protocol.js';
 function defaultMapSpawns(): MobSpawn[] {
   const spawns: MobSpawn[] = [];
   const pool = [
-    // Starter zone — few Porings, spread out.
-    { mobId: 'Mob_Poring' as const, count: 4, range: [8, 35] as const },
-    // Mid-starter
-    { mobId: 'Mob_Lunatic' as const, count: 4, range: [40, 80] as const },
-    { mobId: 'Mob_Spore' as const, count: 3,  range: [80, 130] as const },
-    { mobId: 'Mob_Wolf' as const,  count: 3,  range: [130, 220] as const },
-    { mobId: 'Mob_Savage' as const, count: 2, range: [220, 290] as const },
-    // Boss at the end.
+    { mobId: 'Mob_Poring' as const, count: 1, range: [15, 15] as const },
+    { mobId: 'Mob_Lunatic' as const, count: 1, range: [40, 40] as const },
+    { mobId: 'Mob_Spore' as const, count: 1,  range: [80, 80] as const },
+    { mobId: 'Mob_Wolf' as const,  count: 1,  range: [130, 130] as const },
+    { mobId: 'Mob_Savage' as const, count: 1, range: [220, 220] as const },
     { mobId: 'Mob_Eddga' as const, count: 1, range: [290, 291] as const },
   ];
   for (const g of pool) {
