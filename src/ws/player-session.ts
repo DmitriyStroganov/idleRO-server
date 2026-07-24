@@ -124,6 +124,8 @@ export class PlayerSession {
 
   private lastDebugLog = 0;
   private lastStatePush = 0;
+  /** When true, flush() is skipped (used during reset to prevent re-saving). */
+  public suppressFlush = false;
 
   /** Run one simulation tick (50ms). Called by the global scheduler. */
   tick(now: number): void {
@@ -327,6 +329,7 @@ export class PlayerSession {
 
   /** Persist current state to DB. */
   async flush(): Promise<void> {
+    if (this.suppressFlush) return;
     // Refresh offline baseline from the 5-minute kill window.
     const now = Date.now();
     if (this.recentKillEvents.length > 0) {

@@ -58,7 +58,8 @@ export class WsServer {
 
   /** Close all active client connections (e.g. for reset), but keep server running. */
   disconnectAll(): void {
-    for (const [ws] of this.sessions) {
+    for (const [ws, session] of this.sessions) {
+      session.suppressFlush = true;  // prevent re-save on disconnect
       try { ws.close(4000, 'session_reset'); } catch { /* ignore */ }
     }
     this.sessions.clear();
