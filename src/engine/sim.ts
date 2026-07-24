@@ -405,20 +405,24 @@ export function stepWorld(
   }
 
   // 5. Clean up dead monsters (remove from world after death animation).
-  world.monsters = world.monsters.filter((m) => {
-    if (m.hp <= 0) {
-      // Keep for 1 second after death for animation, then remove.
-      return world.tick - (m as Monster & { deathTick?: number }).deathTick! < 1000
-        || (m as Monster & { deathTick?: number }).deathTick === undefined;
+  // IMPORTANT: spawn system counts monsters by spawn descriptor (including dead ones
+  // still in the array) to prevent double-spawns during the death animation window.
+  {
+    // Mark death tick when monster dies (one-time).
+    for (const m of world.monsters) {
+      if (m.hp <= 0) {
+        const dm = m as Monster & { deathTick?: number };
+        if (dm.deathTick === undefined) dm.deathTick = world.tick;
+      }
     }
-    return true;
-  });
-  // Mark death tick when monster dies (one-time).
-  for (const m of world.monsters) {
-    if (m.hp <= 0) {
-      const dm = m as Monster & { deathTick?: number };
-      if (dm.deathTick === undefined) dm.deathTick = world.tick;
-    }
+    // Remove dead monsters after 1s.
+    world.monsters = world.monsters.filter((m) => {
+      if (m.hp <= 0) {
+        const dm = m as Monster & { deathTick?: number };
+        if (dm.deathTick !== undefined && world.tick - dm.deathTick >= 1000) return false;
+      }
+      return true;
+    });
   }
 
   // 6. Loot auto-pickup (player walks over dropped items)
@@ -451,17 +455,19 @@ function* allEntities(world: World): Generator<Entity> {
 
 function tickSpawns(world: World, _rng: RngState): void {
   for (const spawn of world.map.spawnPoints) {
-    const alive = world.monsters.filter(
-      (m) => m.spawnDescriptor === spawn && m.hp > 0,
+    // Count ALL monsters for this spawn (including dead ones in death animation).
+    // This prevents double-spawning while the corpse is still visible.
+    const total = world.monsters.filter(
+      (m) => m.spawnDescriptor === spawn,
     ).length;
-    if (alive >= spawn.maxAlive) continue;
+    if (total >= spawn.maxAlive) continue;
     // Only spawn when player is near the spawn x (within 25 cells).
     const playerNear = world.players.some(
       (p) => Math.abs(p.position.x - spawn.x) < 25,
     );
     if (!playerNear && !spawn.dynamicSpawn) continue;
     // Check respawn timer via a per-spawn memory slot on the world (simple: spawn immediately if alive < max).
-    if (alive < spawn.maxAlive) {
+    if (total < spawn.maxAlive) {
       const m = createMonster(spawn.mobId, spawn.x, spawn);
       world.monsters.push(m);
     }
@@ -592,10 +598,12 @@ function executePlayerAction(
       const target = world.monsters.find((m) => m.uid === action.targetUid);
       if (!target || target.hp <= 0) return;
       const distance = Math.abs(target.position.x - p.position.x);
-      if (distance > 9) {
+      // Melee range: must be within 1.5 cells to hit.
+      if (distance > 1.5) {
         // Walk into range first.
         p.position.x += Math.sign(target.position.x - p.position.x) * (p.moveSpeed * TICK_MS) / 1000;
         p.sprite.animation = 'walk';
+        p.sprite.facing = target.position.x > p.position.x ? 'right' : 'left';
         return;
       }
       if (world.tick < p.nextAttackAt) return;

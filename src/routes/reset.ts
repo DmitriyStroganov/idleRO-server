@@ -1,5 +1,6 @@
 /**
  * Reset endpoint — deletes character data for "test" user.
+ * Also kills any active WS sessions so the character doesn't get re-saved.
  * Next WS connect will create a fresh Novice 1/1 with starter kit.
  */
 
@@ -8,9 +9,18 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { users, characters, characterMapStates } from '../db/schema.js';
 
+// Reference to kill active sessions — set by index.ts
+export let killSessions: (() => void) | null = null;
+
+export function setKillSessions(fn: () => void): void {
+  killSessions = fn;
+}
+
 export async function resetRoutes(app: FastifyInstance): Promise<void> {
   app.post('/reset', async (_req, reply) => {
-    // Find test user
+    // Kill active WS sessions first so they don't re-save the character.
+    if (killSessions) killSessions();
+
     const testUser = await db.select().from(users).where(eq(users.usernameLc, 'test')).limit(1);
     if (testUser.length === 0) {
       return reply.code(404).send({ error: 'test user not found' });

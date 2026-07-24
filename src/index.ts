@@ -9,7 +9,7 @@
 
 import { buildServer } from './app.js';
 import { healthRoutes } from './routes/health.js';
-import { resetRoutes } from './routes/reset.js';
+import { resetRoutes, setKillSessions } from './routes/reset.js';
 import { WsServer } from './ws/server.js';
 import { closeDb, db } from './db/client.js';
 import { users } from './db/schema.js';
@@ -42,6 +42,9 @@ async function main(): Promise<void> {
   const ws = new WsServer(app);
   ws.start();
   app.addHook('onClose', async () => { await ws.stop(); });
+
+  // Allow reset endpoint to kill active WS sessions.
+  setKillSessions(() => ws.stop());
 
   await app.listen({ host: '0.0.0.0', port: env.PORT });
   console.log(`WebSocket: ws://0.0.0.0:${env.PORT}/ws (auth-less mode)`);
