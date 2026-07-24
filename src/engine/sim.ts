@@ -502,16 +502,23 @@ function tickMonster(m: Monster, world: World, events: SimEvent[], rng: RngState
   }
 
   const distance = Math.abs(target.position.x - m.position.x);
+  const targetDir = target.position.x > m.position.x ? 1 : -1;
 
-  // Move toward target if out of range
-  if (distance > def.attackRange) {
-    const dir = target.position.x > m.position.x ? 1 : -1;
+  // Move toward target if out of attack range.
+  // Stop at exactly attackRange distance — don't overshoot or walk through.
+  if (distance > def.attackRange + 0.5) {
     const step = (def.moveSpeed * TICK_MS) / 1000;
-    m.position.x += dir * step;
+    // Don't overshoot: move at most to attackRange + 0.5
+    const maxStep = distance - (def.attackRange + 0.5);
+    const actualStep = Math.min(step, maxStep);
+    m.position.x += targetDir * actualStep;
     m.sprite.animation = 'walk';
-    m.sprite.facing = dir > 0 ? 'right' : 'left';
+    m.sprite.facing = targetDir > 0 ? 'right' : 'left';
     return;
   }
+
+  // In range — face the player and attack.
+  m.sprite.facing = targetDir > 0 ? 'right' : 'left';
 
   // Attack
   if (world.tick >= m.nextAttackAt) {
@@ -598,10 +605,13 @@ function executePlayerAction(
       const target = world.monsters.find((m) => m.uid === action.targetUid);
       if (!target || target.hp <= 0) return;
       const distance = Math.abs(target.position.x - p.position.x);
-      // Melee range: must be within 1.5 cells to hit.
-      if (distance > 1.5) {
-        // Walk into range first.
-        p.position.x += Math.sign(target.position.x - p.position.x) * (p.moveSpeed * TICK_MS) / 1000;
+      const meleeRange = 1.5;
+      // Walk into melee range, but don't overshoot past the mob.
+      if (distance > meleeRange) {
+        const step = (p.moveSpeed * TICK_MS) / 1000;
+        const maxStep = distance - meleeRange;
+        const actualStep = Math.min(step, maxStep);
+        p.position.x += Math.sign(target.position.x - p.position.x) * actualStep;
         p.sprite.animation = 'walk';
         p.sprite.facing = target.position.x > p.position.x ? 'right' : 'left';
         return;
