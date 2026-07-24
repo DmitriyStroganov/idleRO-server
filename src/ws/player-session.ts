@@ -49,7 +49,7 @@ import type { Command, OutMessage } from './protocol.js';
 function defaultMapSpawns(): MobSpawn[] {
   const spawns: MobSpawn[] = [];
   const pool = [
-    // Poring spawns dynamically — always 8 cells ahead of the player.
+    // Poring spawns dynamically — at right edge of screen (~15 cells ahead).
     { mobId: 'Mob_Poring' as const, count: 1, range: [15, 15] as const },
     // Fixed-position mobs along the lane.
     { mobId: 'Mob_Lunatic' as const, count: 1, range: [40, 40] as const },
@@ -61,8 +61,7 @@ function defaultMapSpawns(): MobSpawn[] {
   for (const g of pool) {
     for (let i = 0; i < g.count; i++) {
       const x = g.range[0] + Math.floor(Math.random() * (g.range[1] - g.range[0]));
-      // Poring is dynamic (spawns ahead of player), rest are fixed.
-      spawns.push({ x, mobId: g.mobId, respawnMs: 10_000, maxAlive: 1,
+      spawns.push({ x, mobId: g.mobId, respawnMs: 5_000, maxAlive: 1,
         dynamicSpawn: g.mobId === 'Mob_Poring' });
     }
   }

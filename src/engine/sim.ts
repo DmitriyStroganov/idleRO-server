@@ -374,6 +374,13 @@ export function stepWorld(
     tickMonster(m, world, events, rng);
   }
 
+  // 2.5. HP/SP regen for alive players (1% of maxHp per second).
+  for (const p of world.players) {
+    if (p.hp > 0 && p.hp < p.maxHp) {
+      p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.01 * TICK_MS / 1000);
+    }
+  }
+
   // 3. Run player strategies (skip dead — they're handled by respawn below)
   for (const p of world.players) {
     if (p.hp <= 0) {
@@ -467,7 +474,7 @@ function tickSpawns(world: World, _rng: RngState): void {
     if (spawn.dynamicSpawn) {
       const player = world.players.find((p) => p.hp > 0);
       if (!player) continue;
-      spawnX = player.position.x + 8; // always 8 cells ahead
+      spawnX = player.position.x + 15; // right edge of typical screen
     } else {
       // Fixed spawn: only activate when player is near.
       const playerNear = world.players.some(
@@ -614,7 +621,7 @@ function executePlayerAction(
       const target = world.monsters.find((m) => m.uid === action.targetUid);
       if (!target || target.hp <= 0) return;
       const distance = Math.abs(target.position.x - p.position.x);
-      const meleeRange = 1.5;
+      const meleeRange = 2.5; // match UI prototype FIGHT_DISTANCE
       // Walk into melee range, but don't overshoot past the mob.
       if (distance > meleeRange) {
         const step = (p.moveSpeed * TICK_MS) / 1000;
